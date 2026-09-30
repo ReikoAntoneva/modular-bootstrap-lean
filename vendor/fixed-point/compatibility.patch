@@ -1,0 +1,89 @@
+diff --git a/FixedPointTheorems/cubical_sperner.lean b/FixedPointTheorems/cubical_sperner.lean
+--- a/FixedPointTheorems/cubical_sperner.lean
++++ b/FixedPointTheorems/cubical_sperner.lean
+@@ -500,10 +500,9 @@
+     rw [← hn1]
+     exact instNeZeroNatHAdd_1
+   }
+-  rw [← child_map_applied SC v1]
+-  rw [← child_map_applied SC v2]
+-  rwa [h1]
+-  exact hn1
++  rw [← child_map_applied SC (hn1 := hn1) v1]
++  rw [← child_map_applied SC (hn1 := hn1) v2]
++  rw [h1]
+ }
+
+ lemma child_map_surj_on {hn1 : n1 + 1 = SC.n} w
+@@ -727,6 +726,9 @@
+             rw [← hk1]
+             rfl
+           }
++          change (I (Fin.ofNat (k + 1) i) j).val ≤
++            (I (Fin.ofNat (k + 1) (i + 1)) j).val ∧
++            (I (Fin.last k) j).val ≤ (I 0 j).val + 1
+           rw [← h6, ← h6, ←h6, ← h6]
+           exact h4 (Fin.ofNat _ j.1)
+         }
+@@ -773,8 +775,9 @@
+     apply Finset.card_nbij f2
+     {
+       intro I hI
+-      have hI' : complete_simplex SC2 SC2.n I :=
+-        (Finset.mem_filter.mp (Finset.mem_coe.mp hI)).2
++      change I ∈ (↑({I : Fin (k + 1) → SC2.G | complete_simplex SC2 k I} : Finset _) : Set _) at hI
++      have hI' : complete_simplex SC2 k I := by
++        simpa only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] using hI
+       exact Finset.mem_coe.mpr
+         (Finset.mem_filter.mpr ⟨Finset.mem_univ _, (hcomp I).mpr hI'⟩)
+     }
+@@ -804,8 +807,11 @@
+       obtain ⟨I, h4⟩ := h4
+       use I
+       simp only [h4, and_true]
+-      exact Finset.mem_coe.mpr (Finset.mem_filter.mpr
+-        ⟨Finset.mem_univ I, (hcomp I).mp (h4 ▸ h3)⟩)
++      change I ∈ (↑({I : Fin (k + 1) → SC2.G | complete_simplex SC2 k I} : Finset _) : Set _)
++      have hI' := (hcomp I).mp (h4 ▸ h3)
++      change complete_simplex SC2 k I at hI'
++      simpa only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] using
++        hI'
+     }
+   }
+
+diff --git a/FixedPointTheorems/cubical_sperner_prep.lean b/FixedPointTheorems/cubical_sperner_prep.lean
+--- a/FixedPointTheorems/cubical_sperner_prep.lean
++++ b/FixedPointTheorems/cubical_sperner_prep.lean
+@@ -787,7 +787,7 @@
+ }
+
+ 
+-def coord_change_count (v1 v2 : SC.G) := Finset.card {i | v1 i ≠ v2 i}
++noncomputable def coord_change_count (v1 v2 : SC.G) := Finset.card {i | v1 i ≠ v2 i}
+
+ lemma ccc_add {m} I (hs : simplex SC m I) (i1 i2 i3) (h1 : i1 ≤ i2 ∧ i2 ≤ i3) :
+     coord_change_count SC (I i1) (I i3) =
+@@ -842,7 +842,7 @@
+   apply h2
+ }
+
+-def ccc_fun {m} (I : Fin (m+1)→ SC.G) (i : Fin (m+1)) : Fin (SC.n + 1 )
++noncomputable def ccc_fun {m} (I : Fin (m+1)→ SC.G) (i : Fin (m+1)) : Fin (SC.n + 1 )
+     := ⟨ coord_change_count SC (I 0) (I i), by {
+       refine Nat.lt_succ_of_le ?_
+       exact card_finset_fin_le {i_1 | I 0 i_1 ≠ I i i_1}
+@@ -870,11 +870,9 @@
+ lemma ccc_fun_case_D_iff {m} I (hs : simplex SC m I) :
+     case_D SC I ↔ ccc_fun SC I (Fin.last m) = Fin.last SC.n := by {
+   have h1 : (ccc_fun SC I (Fin.last m) = Fin.last SC.n) ↔ ∀ k, I 0 k ≠ I (Fin.last m) k  := by {
+-    unfold ccc_fun coord_change_count
+-    rw [Fin.mk.inj_iff]
+-    have h3 : SC.n = Fintype.card (Fin SC.n) := by {exact Eq.symm (Fintype.card_fin SC.n)}
+-    simp only [ne_eq, Fin.val_last]
+-    nth_rewrite 7 [h3]
++    rw [← Fin.val_inj]
++    change Finset.card {k : Fin SC.n | I 0 k ≠ I (Fin.last m) k} = SC.n ↔ _
++    conv_lhs => rhs; rw [← Fintype.card_fin SC.n]
+     rw [Finset.card_eq_iff_eq_univ, Finset.eq_univ_iff_forall]
+     simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+   }

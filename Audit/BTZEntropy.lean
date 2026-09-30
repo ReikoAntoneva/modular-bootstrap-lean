@@ -1,0 +1,66 @@
+import BTZEntropy
+
+/-! Proposition 2.3: actual final statements, their definitions, and the
+axiom dependencies of the completed construction and analytic proof. -/
+
+#print BTZEntropy.smoothBTZFamily_fixedCutoff
+#print BTZEntropy.smoothBTZFamily_exists
+#print BTZEntropy.FixedGapSmoothEntropyFamilyExists
+#check BTZEntropy.smoothBTZEntropy_fixedGap
+#print axioms BTZEntropy.smoothBTZFamily_fixedCutoff
+#print axioms BTZEntropy.smoothBTZFamily_exists
+#print axioms BTZEntropy.smoothBTZEntropy_fixedGap
+
+#print BTZEntropy.SmoothKernel
+#check BTZEntropy.standardKernel
+#print axioms BTZEntropy.standardKernel
+#print axioms BTZEntropy.support_standardKernel
+#print BTZEntropy.RealizesFixedCutoff
+#print BTZEntropy.UniformFixedCutoffFamily
+#print BTZEntropy.UniformRemainder
+#print BTZEntropy.UniformCountPositive
+#print BTZEntropy.entropyTruncation
+#print BTZEntropy.UniformSmoothEntropyExpansion
+#print BTZEntropy.SmoothBTZFamily
+#check BTZEntropy.entropyCoefficient_one
+#check BTZEntropy.entropyCoefficient_two_eq_count
+#print axioms BTZEntropy.vacuumPartitionCount_eq_sub
+#print axioms BTZEntropy.stateEnergy_primary
+#print axioms BTZEntropy.stateSpin_integral
+#print axioms BTZEntropy.smoothCount_nonneg
+#print axioms BTZEntropy.smoothTerm_hasFiniteSupport
+#print axioms BTZEntropy.smoothTerm_summable
+#print axioms BTZEntropy.smoothCount_eq_finite_sum
+#print axioms BTZEntropy.entropyCoefficient_one
+#print axioms BTZEntropy.entropyCoefficient_two_eq_count
+#print axioms BTZEntropy.hasSum_fullState_partitionFunction
+#print axioms BTZEntropy.integral_continuousSpinLeading_eq
+#print axioms BTZEntropy.referenceFullTransform_eq_btz
+#print axioms BTZEntropy.amplitude_pos
+#print axioms BTZEntropy.entropyCoefficient_one_smoothKernel
+#print axioms BTZEntropy.analyticAt_complexKernelTransform
+#print BTZEntropy.Construction.actual_uniformFixedCutoffFamily
+#print axioms BTZEntropy.Construction.actual_uniformFixedCutoffFamily
+#print axioms BTZEntropy.Construction.fixedFamilySelectors_nonempty
+#print axioms BTZEntropy.Construction.fixedFamily_selected_initial_count_le
+#print axioms BTZEntropy.Comparison.exists_uniform_relevantPacket_absMass_error_le
+#print axioms BTZEntropy.Comparison.smoothCount_uniform_initial_add_cell
+#print axioms BTZEntropy.Comparison.fixedFamily_initial_vacuum_uniform_sqrt_bound
+#check BTZEntropy.uniformSaddleCountExpansion_btzCount
+#print BTZEntropy.UniformSaddleCountExpansion
+#print axioms BTZEntropy.uniformSaddleCountExpansion_btzCount
+#print axioms BTZEntropy.uniformSmoothEntropyExpansion_of_saddleCountExpansion
+#print axioms BTZEntropy.uniformRelativeMatching_of_saddleScale_error
+#check BTZEntropy.physicalSmoothCount_eq_btzCount
+#print axioms BTZEntropy.physicalSmoothCount_eq_btzCount
+#print axioms BTZEntropy.continuousReferenceModules_eq_btzCount
+#print axioms BTZEntropy.physicalComplexLaplace_eq_btz
+#print axioms BTZEntropy.Comparison.fixedFamily_smoothCount_sub_integerLeading_activePrefix
+#print axioms BTZEntropy.Comparison.exists_uniform_relevantPacket_exp_error_le
+#print axioms BTZEntropy.Comparison.densityErrorFullPacket_eventually_sqrt_scale
+#check BTZEntropy.Comparison.fixedFamily_discreteReference_uniformRemainder
+#print axioms BTZEntropy.Comparison.fixedFamily_discreteReference_uniformRemainder
+#print axioms BTZEntropy.Comparison.integerLeadingSmoothCount_cutoff_uniformRemainder
+#print axioms BTZEntropy.Comparison.fixedFamily_fullIntegerReference_uniformRemainder
+#print axioms BTZEntropy.integerLeadingSmoothCount_sub_btz_saddleScale
+#print axioms BTZEntropy.fixedFamily_btz_uniformRelativeMatching
