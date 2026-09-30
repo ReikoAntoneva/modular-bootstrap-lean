@@ -1,0 +1,1218 @@
+--- a/Homogenization/Besov/Duality/ProjectedPairing/Projections.lean
++++ b/Homogenization/Besov/Duality/ProjectedPairing/Projections.lean
+@@ -58,7 +58,7 @@
+   have hproj_meas :
+       MeasureTheory.AEStronglyMeasurable (cubeProjection Q (j + 1) g)
+         (normalizedCubeMeasure R) :=
+-    hone.1.congr hEq.symm
++    hone.aestronglyMeasurable.congr hEq.symm
+   refine hone.congr_norm hproj_meas ?_
+   filter_upwards [hEq] with x hx
+   simpa using congrArg abs hx.symm
+--- a/Homogenization/Besov/Localization.lean
++++ b/Homogenization/Besov/Localization.lean
+@@ -69,7 +69,7 @@
+     MeasureTheory.memLp_const c
+   have hproj_meas :
+       MeasureTheory.AEStronglyMeasurable (cubeProjection Q j f) (normalizedCubeMeasure R) :=
+-    hconst.1.congr
++    hconst.aestronglyMeasurable.congr
+       (cubeProjection_ae_eq_cubeAverage_of_mem_descendantsAtDepth (Q := Q) (R := R) (j := j) f hR).symm
+   refine hconst.congr_norm hproj_meas ?_
+   filter_upwards
+@@ -108,7 +108,7 @@
+   have hres_meas :
+       MeasureTheory.AEStronglyMeasurable (cubeProjectionResidual Q j u)
+         (normalizedCubeMeasure R) :=
+-    hu.1.congr hfluct
++    hu.aestronglyMeasurable.congr hfluct
+   refine hu.congr_norm hres_meas ?_
+   filter_upwards [hfluct] with x hx
+   simpa using congrArg abs hx
+@@ -129,7 +129,7 @@
+   have hres_meas :
+       MeasureTheory.AEStronglyMeasurable (cubeProjectionResidual Q j u)
+         (normalizedCubeMeasure R) :=
+-    hu.1.congr hfluct
++    hu.aestronglyMeasurable.congr hfluct
+   have hu_res :
+       MeasureTheory.MemLp (cubeProjectionResidual Q j u) (ENNReal.conjExponent p)
+         (normalizedCubeMeasure R) := by
+--- a/Homogenization/Geometry/TriadicCube.lean
++++ b/Homogenization/Geometry/TriadicCube.lean
+@@ -188,9 +188,9 @@
+     { scale := Q.scale - 1
+       index := fun i => 3 * Q.index i + (digits i : ℤ) - 1 }
+ 
+-def descendantsAtDepth {d : ℕ} (Q : TriadicCube d) : ℕ → Finset (TriadicCube d)
+-  | 0 => {Q}
+-  | n + 1 => (descendantsAtDepth Q n).biUnion childCubes
++/-- Descendant layers obtained by primitive recursion on their natural depth. -/
++def descendantsAtDepth {d : ℕ} (Q : TriadicCube d) : ℕ → Finset (TriadicCube d) :=
++  Nat.rec {Q} (fun _ previous => previous.biUnion childCubes)
+ 
+ def descendantsAtScale {d : ℕ} (Q : TriadicCube d) (k : ℤ) : Finset (TriadicCube d) :=
+   if _h : k ≤ Q.scale then
+--- a/Homogenization/Multiscale/NormalizedNorms.lean
++++ b/Homogenization/Multiscale/NormalizedNorms.lean
+@@ -157,7 +157,7 @@
+     (hf : MeasureTheory.AEStronglyMeasurable f (normalizedCubeMeasure Q)) :
+     cubeLpNorm Q 1 f = ∫ x, ‖f x‖ ∂ normalizedCubeMeasure Q := by
+   unfold cubeLpNorm
+-  rw [MeasureTheory.eLpNorm_one_eq_lintegral_enorm,
++  rw [MeasureTheory.eLpNorm_one_eq_lintegral_enorm hf,
+     ← MeasureTheory.integral_norm_eq_lintegral_enorm hf]
+ 
+ theorem cubeLpNorm_rpow_eq_cubeAverage_norm_rpow {d : ℕ} {E : Type*}
+@@ -173,13 +173,13 @@
+   have hmeas :
+       MeasureTheory.AEStronglyMeasurable (fun x => ‖f x‖ ^ p.toReal)
+         (normalizedCubeMeasure Q) :=
+-    (hf.1.norm.aemeasurable.pow aemeasurable_const).aestronglyMeasurable
++    (hf.aestronglyMeasurable.norm.aemeasurable.pow aemeasurable_const).aestronglyMeasurable
+   calc
+     (cubeLpNorm Q p f) ^ p.toReal
+         = ((MeasureTheory.eLpNorm f p (normalizedCubeMeasure Q)) ^ p.toReal).toReal := by
+             rw [cubeLpNorm, ← ENNReal.toReal_rpow]
+     _ = (∫⁻ x, ‖f x‖ₑ ^ p.toReal ∂ normalizedCubeMeasure Q).toReal := by
+-          rw [MeasureTheory.eLpNorm_eq_lintegral_rpow_enorm_toReal hp0 hpTop]
++          rw [MeasureTheory.eLpNorm_eq_lintegral_rpow_enorm_toReal hp0 hpTop hf.aestronglyMeasurable]
+           let A : ℝ≥0∞ := ∫⁻ x, ‖f x‖ₑ ^ p.toReal ∂ normalizedCubeMeasure Q
+           change ((A ^ (1 / p.toReal)) ^ p.toReal).toReal = A.toReal
+           rw [← ENNReal.rpow_mul, one_div, inv_mul_cancel₀ hpPos.ne', ENNReal.rpow_one]
+@@ -208,12 +208,12 @@
+           MeasureTheory.eLpNorm g q (normalizedCubeMeasure Q) := by
+     simpa using
+       (MeasureTheory.eLpNorm_le_eLpNorm_mul_eLpNorm_of_nnnorm
+-        hf.1 hg.1 (fun a b => a * b) 1
++        (fun a b => a * b) 1 (by fun_prop) hf.aestronglyMeasurable hg.aestronglyMeasurable
+         (Filter.Eventually.of_forall fun x => by
+           simp))
+-  have hf_top : MeasureTheory.eLpNorm f p (normalizedCubeMeasure Q) ≠ ∞ := ne_of_lt hf.2
++  have hf_top : MeasureTheory.eLpNorm f p (normalizedCubeMeasure Q) ≠ ∞ := ne_of_lt hf.eLpNorm_lt_top
+   have hg_top : MeasureTheory.eLpNorm g q (normalizedCubeMeasure Q) ≠ ∞ :=
+-    ne_of_lt hg.2
++    ne_of_lt hg.eLpNorm_lt_top
+   have hmul_top :
+       1 * MeasureTheory.eLpNorm f p (normalizedCubeMeasure Q) *
+         MeasureTheory.eLpNorm g q (normalizedCubeMeasure Q) ≠ ∞ := by
+@@ -245,7 +245,7 @@
+     |cubeAverage Q (fun x => f x * g x)| ≤
+       cubeLpNorm Q p f * cubeLpNorm Q q g := by
+   have hfg_meas : MeasureTheory.AEStronglyMeasurable (fun x => f x * g x) (normalizedCubeMeasure Q) :=
+-    hf.1.mul hg.1
++    hf.aestronglyMeasurable.mul hg.aestronglyMeasurable
+   calc
+     |cubeAverage Q (fun x => f x * g x)|
+       = |∫ x, f x * g x ∂ normalizedCubeMeasure Q| := by
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/VectorFieldAndApex/WeakEquationHelpers.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/VectorFieldAndApex/WeakEquationHelpers.lean
+@@ -93,8 +93,8 @@
+       simpa [gi, diff] using
+         (MeasureTheory.eLpNorm_le_eLpNorm_mul_eLpNorm_of_nnnorm
+           (μ := μ) (p := (2 : ENNReal)) (q := (2 : ENNReal))
+-          (r := (1 : ENNReal)) hgi_meas hdiff_meas
+-          (fun a b : ℝ => a * b) 1
++          (r := (1 : ENNReal)) (fun a b : ℝ => a * b) 1 (by fun_prop)
++          hgi_meas hdiff_meas
+           (Filter.Eventually.of_forall fun x => by simp))
+     have hconst_ne_top : MeasureTheory.eLpNorm gi 2 μ ≠ ⊤ :=
+       hgi_mem.eLpNorm_lt_top.ne
+@@ -134,7 +134,7 @@
+       rw [hEq]
+       exact hL1
+     exact MeasureTheory.tendsto_integral_of_L1'
+-      (μ := μ) (f := fLim) hfLim_int.aestronglyMeasurable hFn_int hL1_diff
++      (μ := μ) (f := fLim) hFn_int hL1_diff
+   have hleft_tendsto :
+       Filter.Tendsto
+         (fun n => ∫ x in U, vecDot (G x) (D n x) ∂MeasureTheory.volume)
+@@ -214,8 +214,8 @@
+       simpa [diff] using
+         (MeasureTheory.eLpNorm_le_eLpNorm_mul_eLpNorm_of_nnnorm
+           (μ := μ) (p := (2 : ENNReal)) (q := (2 : ENNReal))
+-          (r := (1 : ENNReal)) hf_meas hdiff_meas
+-          (fun a b : ℝ => a * b) 1
++          (r := (1 : ENNReal)) (fun a b : ℝ => a * b) 1 (by fun_prop)
++          hf_meas hdiff_meas
+           (Filter.Eventually.of_forall fun x => by simp))
+     have hconst_ne_top : MeasureTheory.eLpNorm f 2 μ ≠ ⊤ :=
+       hf.eLpNorm_lt_top.ne
+@@ -255,7 +255,7 @@
+       rw [hEq]
+       exact hL1
+     exact MeasureTheory.tendsto_integral_of_L1'
+-      (μ := μ) (f := fLim) hfLim_int.aestronglyMeasurable hFn_int hL1_diff
++      (μ := μ) (f := fLim) hFn_int hL1_diff
+   have hright_to_left :
+       Filter.Tendsto
+         (fun n => ∫ x in U, f x * φ.approx n x ∂MeasureTheory.volume)
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/DiffQuotientLp.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/DiffQuotientLp.lean
+@@ -174,7 +174,9 @@
+       have htri :=
+         MeasureTheory.eLpNorm_add_le
+           (μ := MeasureTheory.volume) (p := (2 : ℝ≥0∞))
+-          hdq_approx_meas hdq_diff_meas.neg
++          (f := euclideanBackwardDifferenceQuotient step i (ψ.approx n))
++          (g := -(fun x => euclideanBackwardDifferenceQuotient step i (ψ.approx n) x -
++            euclideanBackwardDifferenceQuotient step i ψ.toH1Function.toFun x))
+           (by norm_num : (1 : ℝ≥0∞) ≤ 2)
+       have hpoint :
+           (euclideanBackwardDifferenceQuotient step i (ψ.approx n) +
+@@ -230,8 +232,8 @@
+       have htri :=
+         MeasureTheory.eLpNorm_add_le
+           (μ := MeasureTheory.volume.restrict U) (p := (2 : ℝ≥0∞))
+-          (ψ.toH1Function.gradMemL2 i).aestronglyMeasurable
+-          hderiv_diff_mem.aestronglyMeasurable
++          (f := fun x => ψ.toH1Function.grad x i)
++          (g := fun x => euclideanCoordDeriv i (ψ.approx n) x - ψ.toH1Function.grad x i)
+           (by norm_num : (1 : ℝ≥0∞) ≤ 2)
+       have hderiv_point :
+           ((fun x => ψ.toH1Function.grad x i) +
+@@ -302,8 +304,7 @@
+   have hnorm :=
+     eLpNorm_h10_backwardDifferenceQuotient_le_eLpNorm_grad
+       (U := U) hU_meas ψ hψ_support hstep i
+-  exact ⟨hquot_meas,
+-    lt_of_le_of_lt hnorm (ψ.toH1Function.gradMemL2 i).eLpNorm_lt_top⟩
++  exact lt_of_le_of_lt hnorm (ψ.toH1Function.gradMemL2 i).eLpNorm_lt_top
+ 
+ /-- Forward version of the `H¹₀` quotient estimate. -/
+ theorem eLpNorm_h10_forwardDifferenceQuotient_le_eLpNorm_grad
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/EnergyIntegrand.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/EnergyIntegrand.lean
+@@ -380,6 +380,54 @@
+   rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero hzeroU,
+     MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero hzeroV]
+ 
++/-- Compatibility with the measurability-sensitive `eLpNorm`: a genuinely
++supported restricted representative extends by zero without a measurable-set premise. -/
++private theorem aestronglyMeasurable_of_restrict_of_support_subset_general
++    {E : Type*} [NormedAddCommGroup E] {F : Vec d → E} {S : Set (Vec d)}
++    (hF : MeasureTheory.AEStronglyMeasurable F (MeasureTheory.volume.restrict S))
++    (hsupport : Function.support F ⊆ S) :
++    MeasureTheory.AEStronglyMeasurable F MeasureTheory.volume := by
++  let N := MeasureTheory.toMeasurable (MeasureTheory.volume.restrict S)
++    {x | F x ≠ hF.mk F x}
++  have hN : MeasurableSet N := MeasureTheory.measurableSet_toMeasurable _ _
++  have hNzero : MeasureTheory.volume (N ∩ S) = 0 := by
++    rw [← MeasureTheory.Measure.restrict_apply hN]
++    change (MeasureTheory.volume.restrict S)
++      (MeasureTheory.toMeasurable (MeasureTheory.volume.restrict S)
++        {x | F x ≠ hF.mk F x}) = 0
++    rw [MeasureTheory.measure_toMeasurable]
++    exact MeasureTheory.ae_iff.mp hF.ae_eq_mk
++  refine ⟨Nᶜ.indicator (hF.mk F), hF.stronglyMeasurable_mk.indicator hN.compl, ?_⟩
++  apply MeasureTheory.ae_iff.mpr
++  apply MeasureTheory.measure_mono_null ?_ hNzero
++  intro x hx
++  change ¬ F x = Nᶜ.indicator (hF.mk F) x at hx
++  have hxN : x ∈ N := by
++    by_contra hxN
++    apply hx
++    rw [Set.indicator_of_mem hxN]
++    by_contra hne
++    exact hxN (MeasureTheory.subset_toMeasurable _ _ hne)
++  refine ⟨hxN, ?_⟩
++  by_contra hxS
++  apply hx
++  rw [Set.indicator_of_notMem (by simpa using hxN)]
++  by_contra hne
++  exact hxS (hsupport hne)
++
++private theorem eLpNorm_restrict_eq_of_support_subset_general
++    {E : Type*} [NormedAddCommGroup E] {F : Vec d → E} {S : Set (Vec d)} {p : ℝ≥0∞}
++    (hsupport : Function.support F ⊆ S) :
++    MeasureTheory.eLpNorm F p (MeasureTheory.volume.restrict S) =
++      MeasureTheory.eLpNorm F p MeasureTheory.volume := by
++  by_cases hF : MeasureTheory.AEStronglyMeasurable F MeasureTheory.volume
++  · exact MeasureTheory.eLpNorm_restrict_eq_of_support_subset hF hsupport
++  · have hFr : ¬ MeasureTheory.AEStronglyMeasurable F
++        (MeasureTheory.volume.restrict S) := fun h =>
++      hF (aestronglyMeasurable_of_restrict_of_support_subset_general h hsupport)
++    rw [MeasureTheory.eLpNorm_of_not_aestronglyMeasurable hFr,
++      MeasureTheory.eLpNorm_of_not_aestronglyMeasurable hF]
++
+ /-- If a function is supported in an interior set `V ⊆ U`, its `eLpNorm` on
+ the ambient restricted measure agrees with its `eLpNorm` on `V`. -/
+ theorem eLpNorm_restrict_eq_restrict_of_support_subset
+@@ -388,8 +436,8 @@
+     MeasureTheory.eLpNorm F p (MeasureTheory.volume.restrict U) =
+       MeasureTheory.eLpNorm F p (MeasureTheory.volume.restrict V) := by
+   have hsupportU : Function.support F ⊆ U := hF_support.trans hVU
+-  rw [MeasureTheory.eLpNorm_restrict_eq_of_support_subset hsupportU]
+-  rw [← MeasureTheory.eLpNorm_restrict_eq_of_support_subset hF_support]
++  rw [eLpNorm_restrict_eq_of_support_subset_general hsupportU]
++  rw [← eLpNorm_restrict_eq_of_support_subset_general hF_support]
+ 
+ /-- Translation invariance of global `eLpNorm` for a coordinate shift. -/
+ theorem eLpNorm_comp_euclideanCoordShift_of_aestronglyMeasurable
+@@ -465,10 +513,11 @@
+         MeasureTheory.eLpNorm Δ 2 MeasureTheory.volume +
+           MeasureTheory.eLpNorm (fun x => Δ (euclideanCoordShift (-step) i x))
+             2 MeasureTheory.volume := by
+-    simpa [sub_eq_add_neg] using!
+-      MeasureTheory.eLpNorm_add_le
++    simpa only [Pi.sub_def] using
++      MeasureTheory.eLpNorm_sub_le
+         (μ := MeasureTheory.volume) (p := (2 : ℝ≥0∞))
+-        hΔ hshift_meas.neg (by norm_num : (1 : ℝ≥0∞) ≤ 2)
++        (f := Δ) (g := fun x => Δ (euclideanCoordShift (-step) i x))
++        (by norm_num : (1 : ℝ≥0∞) ≤ 2)
+   calc
+     MeasureTheory.eLpNorm
+         (fun x =>
+@@ -583,7 +632,7 @@
+     {F : Vec d → ℝ} (hF_support : Function.support F ⊆ U) :
+     MeasureTheory.eLpNorm F 2 MeasureTheory.volume =
+       MeasureTheory.eLpNorm F 2 (MeasureTheory.volume.restrict U) :=
+-  (MeasureTheory.eLpNorm_restrict_eq_of_support_subset hF_support).symm
++  (eLpNorm_restrict_eq_of_support_subset_general hF_support).symm
+ 
+ /-- A restricted a.e.-strongly-measurable scalar function with genuine support
+ in `U` is globally a.e.-strongly-measurable after extension by zero. -/
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/Localizations.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/Localizations.lean
+@@ -587,8 +587,8 @@
+               simp [wφ]
+               ring
+             rw [hEq]
+-            exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-              hdiff_mem.aestronglyMeasurable φ
++            exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++                  (f := fun x => ψ n x - w.toFun x) 2 (by norm_num)
+           refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+             tendsto_const_nhds ?_ (fun n => zero_le) hupper
+           simpa using hconst_tendsto
+@@ -686,9 +686,9 @@
+             have hbase_mem : MeasureTheory.MemLp (fun x => ψ n x - w x) 2 μV :=
+               (hψ_memL2 n).sub w.memL2
+             have hA_mem : MeasureTheory.MemLp A 2 μV := by
+-              simpa [A, μV] using hbase_grad_mem.mul' hφ_top
++              simpa [A, μV] using hφ_top.fun_mul (r := 2) hbase_grad_mem
+             have hB_mem : MeasureTheory.MemLp B 2 μV := by
+-              simpa [B, dφ, μV] using hbase_mem.mul' hdφ_top
++              simpa [B, dφ, μV] using hdφ_top.fun_mul (r := 2) hbase_mem
+             have hEq :
+                 (fun x =>
+                   (fderiv ℝ (fun y => φ y * ψ n y) x) (basisVec i) -
+@@ -704,15 +704,14 @@
+               simp [A, B, dφ, wφ, smul_eq_mul, add_apply]
+               ring
+             rw [hEq]
+-            refine (MeasureTheory.eLpNorm_add_le hA_mem.aestronglyMeasurable
+-              hB_mem.aestronglyMeasurable (by norm_num)).trans ?_
++            refine (MeasureTheory.eLpNorm_add_le (by norm_num)).trans ?_
+             refine add_le_add ?_ ?_
+             · simpa [A, mul_comm, mul_left_comm, mul_assoc] using!
+-                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-                  hbase_grad_mem.aestronglyMeasurable φ)
++                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++                  (f := fun x => (fderiv ℝ (ψ n) x) (basisVec i) - w.grad x i) 2 (by norm_num))
+             · simpa [B, dφ, mul_comm, mul_left_comm, mul_assoc] using!
+-                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-                  hbase_mem.aestronglyMeasurable dφ)
++                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := dφ)
++                  (f := fun x => ψ n x - w.toFun x) 2 (by norm_num))
+           refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+             tendsto_const_nhds ?_ (fun n => zero_le) hupper
+           simpa [zero_add] using hsum_tendsto }, rfl⟩
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/SmoothLimit.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/SmoothLimit.lean
+@@ -92,12 +92,14 @@
+     exact (MeasureTheory.Lp.edist_toLp_toLp (F n) G (hF n) hG).symm
+   simpa [hEq] using hed
+ 
+-/-- On a finite-measure set, an `O(|h_n|)` pointwise bound forces the `L²`
+-seminorm to vanish when `h_n -> 0`. -/
++/-- On a finite-measure set, an `O(|h_n|)` pointwise bound for measurable fields
++forces the `L²` seminorm to vanish when `h_n -> 0`. The measurability premise is
++required by the measurability-sensitive `eLpNorm` in mathlib 4.34. -/
+ theorem tendsto_eLpNorm_zero_of_ae_norm_le_mul_norm
+     {d : ℕ} {U : Set (Vec d)} {F : ℕ → Vec d → ℝ}
+     {stepSeq : ℕ → ℝ} {C : ℝ}
+     (hUfinite : (volumeMeasureOn U) Set.univ ≠ ⊤)
++    (hF : ∀ n, MeasureTheory.AEStronglyMeasurable (F n) (volumeMeasureOn U))
+     (hstep : Filter.Tendsto stepSeq Filter.atTop (nhds 0))
+     (hbound : ∀ n, ∀ᵐ x ∂volumeMeasureOn U, ‖F n x‖ ≤ C * ‖stepSeq n‖) :
+     Filter.Tendsto
+@@ -124,7 +126,7 @@
+   · exact bot_le
+   · dsimp [A]
+     exact MeasureTheory.eLpNorm_le_of_ae_bound (μ := volumeMeasureOn U)
+-      (p := (2 : ℝ≥0∞)) (hbound n)
++      (p := (2 : ℝ≥0∞)) (hF n) (hbound n)
+ 
+ namespace WeakPoissonEquationOn
+ 
+@@ -424,7 +426,13 @@
+       (F := fun n x =>
+         euclideanBackwardDifferenceQuotient (stepSeq n) i (fun y => φ.deriv j y) x -
+           (fderiv ℝ (fun y => φ.deriv j y) x) (basisVec i))
+-      (stepSeq := stepSeq) hfinite hstep hC
++      (stepSeq := stepSeq) hfinite
++      (fun n =>
++        (memScalarL2_euclideanBackwardDifferenceQuotient_h1WeakTest_deriv
++          (U := openCubeSet Q) (step := stepSeq n) φ i j).aestronglyMeasurable.sub
++        (memScalarL2_fderiv_h1WeakTest_deriv_apply
++          (U := openCubeSet Q) φ i j).aestronglyMeasurable)
++      hstep hC
+ 
+ end WeakPoissonEquationOn
+ 
+--- a/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/TestSubmodule.lean
++++ b/Homogenization/Sobolev/Foundations/CubeNeumannW22CZ/WeakInteriorDQ/TestSubmodule.lean
+@@ -173,10 +173,10 @@
+         ContDiff ℝ (⊤ : ℕ∞) φ ∧ HasCompactSupport φ ∧ tsupport φ ⊆ U := by
+   obtain ⟨δ, hδpos, hδ⟩ :=
+     hgL2.eLpNorm_indicator_le (p := (2 : ENNReal)) (by norm_num)
+-      ENNReal.ofNat_ne_top hε
++      ENNReal.ofNat_ne_top (ENNReal.ofReal_pos.mpr hε)
+   obtain ⟨K, hKU, hK_compact, hK_closed, hμK⟩ :=
+     hUopen.measurableSet.exists_isCompact_isClosed_sdiff_lt (μ := MeasureTheory.volume)
+-      hUfinite ((ENNReal.ofReal_pos.mpr hδpos).ne')
++      hUfinite hδpos.ne'
+   rcases exists_compact_closed_between hK_compact hUopen hKU with
+     ⟨L, hL_compact, hL_closed, hKL, hLU⟩
+   obtain ⟨η, hη_one, hη_zero, hη_range⟩ :=
+@@ -200,7 +200,7 @@
+   have hφL2 : MemScalarL2 U φ :=
+     hφ_cont.continuous.memLp_of_hasCompactSupport hφ_compact
+   refine ⟨φ, hφL2, ?_, hφ_cont, hφ_compact, hφ_tsupport⟩
+-  have hμsmall : volumeMeasureOn U (U \ K) ≤ ENNReal.ofReal δ := by
++  have hμsmall : volumeMeasureOn U (U \ K) ≤ δ := by
+     unfold volumeMeasureOn
+     rw [MeasureTheory.Measure.restrict_apply (hUopen.measurableSet.diff hK_closed.measurableSet)]
+     simpa [Set.inter_eq_self_of_subset_left (Set.sdiff_subset : U \ K ⊆ U)] using hμK.le
+@@ -208,7 +208,8 @@
+   calc
+     MeasureTheory.eLpNorm (g - φ) 2 (volumeMeasureOn U)
+         ≤ MeasureTheory.eLpNorm ((U \ K).indicator g) 2 (volumeMeasureOn U) := by
+-          refine MeasureTheory.eLpNorm_mono_ae ?_
++          refine MeasureTheory.eLpNorm_mono_ae
++            (hgL2.aestronglyMeasurable.sub hφL2.aestronglyMeasurable) ?_
+           have hmem : ∀ᵐ x ∂ volumeMeasureOn U, x ∈ U := by
+             simpa [volumeMeasureOn] using MeasureTheory.ae_restrict_mem hUopen.measurableSet
+           filter_upwards [hmem] with x hxU
+@@ -266,9 +267,7 @@
+               simp [Pi.sub_apply]
+         _ ≤ MeasureTheory.eLpNorm ((fun x => f x) - g) 2 (volumeMeasureOn U) +
+               MeasureTheory.eLpNorm (g - φ) 2 (volumeMeasureOn U) := by
+-              refine MeasureTheory.eLpNorm_add_le ?_ ?_ (by norm_num : (1 : ENNReal) ≤ 2)
+-              · exact (MeasureTheory.Lp.aestronglyMeasurable f).sub hgL2.aestronglyMeasurable
+-              · exact hgL2.aestronglyMeasurable.sub hφL2.aestronglyMeasurable
++              exact MeasureTheory.eLpNorm_add_le (by norm_num : (1 : ENNReal) ≤ 2)
+         _ ≤ ENNReal.ofReal (ε / 2) + ENNReal.ofReal (ε / 2) := add_le_add hg_err hφ_err
+         _ = ENNReal.ofReal ε := by
+               rw [← ENNReal.ofReal_add hε2.le hε2.le, add_halves]
+--- a/Homogenization/Sobolev/Foundations/CubePoisson/Solver.lean
++++ b/Homogenization/Sobolev/Foundations/CubePoisson/Solver.lean
+@@ -134,7 +134,7 @@
+   have htop :
+       ENNReal.ofReal (((cubeVolume Q)⁻¹) + 1) *
+           MeasureTheory.eLpNorm f (2 : ℝ≥0∞) μ ≠ ∞ := by
+-    exact ENNReal.mul_ne_top ENNReal.ofReal_ne_top hopen.2.ne
++    exact ENNReal.mul_ne_top ENNReal.ofReal_ne_top hopen.eLpNorm_lt_top.ne
+   have hmain :
+       MeasureTheory.eLpNorm f (2 : ℝ≥0∞) (normalizedCubeMeasure Q) ≤
+         ENNReal.ofReal (((cubeVolume Q)⁻¹) + 1) *
+@@ -146,7 +146,8 @@
+               rw [normalizedCubeMeasure]
+               dsimp [c]
+               rw [MeasureTheory.eLpNorm_smul_measure_of_ne_top
+-                (by norm_num : (2 : ℝ≥0∞) ≠ ∞)]
++                (by norm_num : (2 : ℝ≥0∞) ≠ ∞) _ _
++        (by simpa only [hμ_eq] using hopen.aestronglyMeasurable)]
+               simp [hμ_eq, μ]
+       _ ≤ ENNReal.ofReal (((cubeVolume Q)⁻¹) + 1) *
+           MeasureTheory.eLpNorm f (2 : ℝ≥0∞) μ := by
+@@ -197,7 +198,8 @@
+           MeasureTheory.eLpNorm f (2 : ℝ≥0∞) μ).toReal := by
+     unfold cubeLpNorm normalizedCubeMeasure
+     rw [MeasureTheory.eLpNorm_smul_measure_of_ne_top
+-      (by norm_num : (2 : ℝ≥0∞) ≠ ∞)]
++      (by norm_num : (2 : ℝ≥0∞) ≠ ∞) _ _
++        (by simpa only [hμ_eq] using hopen.aestronglyMeasurable)]
+     simp [c, hμ_eq, μ]
+   have hopen_norm :
+       ‖Homogenization.toScalarL2 hopen‖ =
+@@ -240,7 +242,8 @@
+           MeasureTheory.eLpNorm f (2 : ℝ≥0∞) μ).toReal := by
+     unfold cubeLpNorm normalizedCubeMeasure
+     rw [MeasureTheory.eLpNorm_smul_measure_of_ne_top
+-      (by norm_num : (2 : ℝ≥0∞) ≠ ∞)]
++      (by norm_num : (2 : ℝ≥0∞) ≠ ∞) _ _
++        (by simpa only [hμ_eq] using hopen.aestronglyMeasurable)]
+     simp [c, hμ_eq, μ]
+   have hopen_norm :
+       ‖Homogenization.toScalarL2 hopen‖ =
+--- a/Homogenization/Sobolev/Foundations/Cutoff/Cube.lean
++++ b/Homogenization/Sobolev/Foundations/Cutoff/Cube.lean
+@@ -464,7 +464,7 @@
+     (Q : TriadicCube d) (ρ₁ ρ₂ : ℝ) (x : Vec d) :
+     cubeCutoff θ Q ρ₁ ρ₂ x ≤ 1 := by
+   unfold cubeCutoff
+-  exact Finset.prod_le_one
++  exact Finset.prod_le_one₀
+     (fun i _hi => θ.nonneg _)
+     (fun i _hi => θ.le_one _)
+ 
+@@ -553,7 +553,7 @@
+     (Q : TriadicCube d) (ρ₁ ρ₂ : ℝ) (u : Finset (Fin d)) (x : Vec d) :
+     partialCubeCutoff θ Q ρ₁ ρ₂ u x ≤ 1 := by
+   unfold partialCubeCutoff
+-  exact Finset.prod_le_one (fun i _hi => θ.nonneg _) (fun i _hi => θ.le_one _)
++  exact Finset.prod_le_one₀ (fun i _hi => θ.nonneg _) (fun i _hi => θ.le_one _)
+ 
+ private theorem norm_iteratedFDeriv_zero_cubeFactor_le_one {d : ℕ}
+     (θ : QuantitativeTransitionProfile) (Q : TriadicCube d)
+@@ -610,7 +610,7 @@
+         have hprod_nonneg : 0 ≤ ∏ j ∈ u.erase i, cubeFactor θ Q ρ₁ ρ₂ j x :=
+           Finset.prod_nonneg fun j hj => θ.nonneg _
+         have hprod_le_one : ∏ j ∈ u.erase i, cubeFactor θ Q ρ₁ ρ₂ j x ≤ 1 :=
+-          Finset.prod_le_one (fun j hj => θ.nonneg _) (fun j hj => θ.le_one _)
++          Finset.prod_le_one₀ (fun j hj => θ.nonneg _) (fun j hj => θ.le_one _)
+         have hfactor_bound :
+             ‖fderiv ℝ (cubeFactor θ Q ρ₁ ρ₂ i) x‖ ≤
+               (max 1 (max θ.derivBound θ.secondDerivBound)) *
+@@ -861,7 +861,7 @@
+             Finset.prod_nonneg fun j _ => θ.nonneg _
+           have hprod_le_one : ∏ j ∈ (Finset.univ : Finset (Fin d)).erase i,
+               θ (cubeArgument Q ρ₁ ρ₂ j x) ≤ 1 :=
+-            Finset.prod_le_one (fun j _ => θ.nonneg _) (fun j _ => θ.le_one _)
++            Finset.prod_le_one₀ (fun j _ => θ.nonneg _) (fun j _ => θ.le_one _)
+           have hfactor_bound :
+               ‖fderiv ℝ (fun y : Vec d => θ (cubeArgument Q ρ₁ ρ₂ i y)) x‖ ≤
+                 θ.derivBound * (2 / ((ρ₂ - ρ₁) * cubeRadius Q)) := by
+--- a/Homogenization/Sobolev/Foundations/PoincareMeanZero.lean
++++ b/Homogenization/Sobolev/Foundations/PoincareMeanZero.lean
+@@ -77,7 +77,8 @@
+         (MeasureTheory.eLpNorm (fun x => ‖(fderiv ℝ f x) (basisVec i)‖) 2
+           (volumeMeasureOn U))
+       = ENNReal.toReal (MeasureTheory.eLpNorm dg 2 (volumeMeasureOn U)) := by
+-          rw [MeasureTheory.eLpNorm_norm]
++          rw [MeasureTheory.eLpNorm_norm _
++            (((hf1.continuous_fderiv (by simp)).clm_apply continuous_const).aestronglyMeasurable)]
+     _ = ENNReal.toReal (MeasureTheory.eLpNorm (fun x => u.grad x i) 2
+           (volumeMeasureOn U)) := by
+           simp [u, dg, H1Function.ofContDiffOnIsOpenBoundedConvexDomain,
+@@ -198,16 +199,15 @@
+           (μ := μ)
+           (s := Finset.univ)
+           (f := di)
+-          (fun i _ => (hdi_mem i).1)
+           (by norm_num : (1 : ℝ≥0∞) ≤ 2))
+     calc
+       ‖dCoordLp‖ = ENNReal.toReal (MeasureTheory.eLpNorm D 2 μ) := by
+             simp [dCoordLp]
+       _ ≤ ENNReal.toReal (∑ i : Fin d, MeasureTheory.eLpNorm (di i) 2 μ) := by
+             refine ENNReal.toReal_mono ?_ hsum_eLp
+-            exact ENNReal.sum_ne_top.2 fun i _ => (hdi_mem i).2.ne
++            exact ENNReal.sum_ne_top.2 fun i _ => (hdi_mem i).eLpNorm_lt_top.ne
+       _ = ∑ i : Fin d, ‖u.gradCoordToScalarL2 i‖ := by
+-            rw [ENNReal.toReal_sum (fun i hi => (hdi_mem i).2.ne)]
++            rw [ENNReal.toReal_sum (fun i hi => (hdi_mem i).eLpNorm_lt_top.ne)]
+             refine Finset.sum_congr rfl ?_
+             intro i hi
+             simpa [di, hf1, μ] using
+@@ -531,7 +531,7 @@
+     rw [show (ψ n).toFun x =
+       convexApproxSmoothRepresentative U ρ u x0 r (unitConvexApproxScale n) x by
+         simpa [ρ] using congrFun hψ_toFun x]
+-  exact (ENNReal.tendsto_toReal_zero_iff (fun n => (hmem n).2.ne)).2 hrep
++  exact (ENNReal.tendsto_toReal_zero_iff (fun n => (hmem n).eLpNorm_lt_top.ne)).2 hrep
+ 
+ theorem tendsto_convexApproxSmoothH1_gradCoordToScalarL2
+     (hU : IsOpenBoundedConvexDomain U) (u : H1Function U)
+@@ -653,7 +653,7 @@
+         (convexApproxSmoothRepresentative U ρ u x0 r (unitConvexApproxScale n)) x)
+           (basisVec i) by
+         simpa [ρ] using congrFun (congrFun hψ_grad x) i]
+-  exact (ENNReal.tendsto_toReal_zero_iff (fun n => (hmem n).2.ne)).2 hrep
++  exact (ENNReal.tendsto_toReal_zero_iff (fun n => (hmem n).eLpNorm_lt_top.ne)).2 hrep
+ 
+ /-- The smooth Poincare estimate passes to arbitrary `H¹` functions by the
+ convex smoothing approximation. -/
+--- a/Homogenization/Sobolev/Foundations/ZeroTraceAverages.lean
++++ b/Homogenization/Sobolev/Foundations/ZeroTraceAverages.lean
+@@ -117,7 +117,6 @@
+     MeasureTheory.tendsto_integral_of_L1'
+       (μ := μ)
+       (f := fun x => u.toH1Function.grad x i)
+-      hfi.aestronglyMeasurable
+       hD_integrable_restrict
+       hL1
+   have hEq : (fun m => ∫ x, D m x ∂μ) = fun _ => (0 : ℝ) := by
+--- a/Homogenization/Sobolev/H1/Algebra/H10Function.lean
++++ b/Homogenization/Sobolev/H1/Algebra/H10Function.lean
+@@ -168,8 +168,7 @@
+                 (u.approx n x - u.toH1Function.toFun x) + (v.approx n x - v.toH1Function.toFun x)
+             ring
+           rw [hEq]
+-          exact MeasureTheory.eLpNorm_add_le hdu_mem.aestronglyMeasurable hdv_mem.aestronglyMeasurable
+-            (by norm_num)
++          exact MeasureTheory.eLpNorm_add_le (by norm_num)
+         have hsum :
+             Filter.Tendsto
+               (fun n =>
+@@ -257,8 +256,7 @@
+                   ((fderiv ℝ (v.approx n) x) (basisVec i) - v.grad x i)
+             ring
+           rw [hEq]
+-          exact MeasureTheory.eLpNorm_add_le hdu_mem.aestronglyMeasurable hdv_mem.aestronglyMeasurable
+-            (by norm_num)
++          exact MeasureTheory.eLpNorm_add_le (by norm_num)
+         have hsum :
+             Filter.Tendsto
+               (fun n =>
+@@ -342,8 +340,8 @@
+           φ x * (u.approx n x - u.toH1Function.toFun x)
+         ring
+       rw [hEq]
+-      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-        hdiff_mem.aestronglyMeasurable φ
++      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num)
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa using hconst_tendsto
+@@ -426,10 +424,10 @@
+         exact happrox_mem.sub u.toH1Function.memL2
+       have hA_mem :
+           MeasureTheory.MemLp A 2 μU := by
+-        simpa [A, μU] using hbase_grad_mem.mul' hφ_memTop
++        simpa [A, μU] using hφ_memTop.fun_mul (r := 2) hbase_grad_mem
+       have hB_mem :
+           MeasureTheory.MemLp B 2 μU := by
+-        simpa [B, dφ, Dφ, μU] using hbase_mem.mul' (hdφ_memTop i)
++        simpa [B, dφ, Dφ, μU] using (hdφ_memTop i).fun_mul (r := 2) hbase_mem
+       have hEq :
+           (fun x =>
+             (fderiv ℝ (fun y => φ y * u.approx n y) x) (basisVec i) - uφ.grad x i) =
+@@ -445,15 +443,14 @@
+           smul_eq_mul]
+         ring
+       rw [hEq]
+-      refine (MeasureTheory.eLpNorm_add_le hA_mem.aestronglyMeasurable
+-        hB_mem.aestronglyMeasurable (by norm_num)).trans ?_
++      refine (MeasureTheory.eLpNorm_add_le (by norm_num)).trans ?_
+       refine add_le_add ?_ ?_
+       · simpa [A, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_grad_mem.aestronglyMeasurable φ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => (fderiv ℝ (u.approx n) x) (basisVec i) - u.toH1Function.grad x i) 2 (by norm_num))
+       · simpa [B, dφ, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_mem.aestronglyMeasurable dφ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := dφ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num))
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa [zero_add] using hsum_tendsto
+@@ -547,8 +544,8 @@
+           φ x * (u.approx n x - u.toH1Function.toFun x)
+         ring
+       rw [hEq]
+-      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-        hdiff_mem.aestronglyMeasurable φ
++      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num)
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa using hconst_tendsto
+@@ -638,10 +635,10 @@
+         exact happrox_mem.sub u.toH1Function.memL2
+       have hA_mem :
+           MeasureTheory.MemLp A 2 μU := by
+-        simpa [A, μU] using hbase_grad_mem.mul' hφ_memTop
++        simpa [A, μU] using hφ_memTop.fun_mul (r := 2) hbase_grad_mem
+       have hB_mem :
+           MeasureTheory.MemLp B 2 μU := by
+-        simpa [B, dφ, μU] using hbase_mem.mul' hdφ_memTop
++        simpa [B, dφ, μU] using hdφ_memTop.fun_mul (r := 2) hbase_mem
+       have hEq :
+           (fun x =>
+             (fderiv ℝ (fun y => φ y * u.approx n y) x) (basisVec i) - uφ.grad x i) =
+@@ -657,15 +654,14 @@
+           smul_eq_mul]
+         ring
+       rw [hEq]
+-      refine (MeasureTheory.eLpNorm_add_le hA_mem.aestronglyMeasurable
+-        hB_mem.aestronglyMeasurable (by norm_num)).trans ?_
++      refine (MeasureTheory.eLpNorm_add_le (by norm_num)).trans ?_
+       refine add_le_add ?_ ?_
+       · simpa [A, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_grad_mem.aestronglyMeasurable φ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => (fderiv ℝ (u.approx n) x) (basisVec i) - u.toH1Function.grad x i) 2 (by norm_num))
+       · simpa [B, dφ, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_mem.aestronglyMeasurable dφ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := dφ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num))
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa [zero_add] using hsum_tendsto
+@@ -738,8 +734,8 @@
+           φ x * (u.approx n x - u.toH1Function.toFun x)
+         ring
+       rw [hEq]
+-      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-        hdiff_mem.aestronglyMeasurable φ
++      exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num)
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa using hconst_tendsto
+@@ -829,10 +825,10 @@
+         exact happrox_mem.sub u.toH1Function.memL2
+       have hA_mem :
+           MeasureTheory.MemLp A 2 μU := by
+-        simpa [A, μU] using hbase_grad_mem.mul' hφ_memTop
++        simpa [A, μU] using hφ_memTop.fun_mul (r := 2) hbase_grad_mem
+       have hB_mem :
+           MeasureTheory.MemLp B 2 μU := by
+-        simpa [B, dφ, μU] using hbase_mem.mul' hdφ_memTop
++        simpa [B, dφ, μU] using hdφ_memTop.fun_mul (r := 2) hbase_mem
+       have hEq :
+           (fun x =>
+             (fderiv ℝ (fun y => φ y * u.approx n y) x) (basisVec i) - uφ.grad x i) =
+@@ -846,15 +842,14 @@
+         simp [A, B, dφ, Dφ, uφ, H1Function.mulContDiffHasCompactSupport_grad, smul_eq_mul]
+         ring
+       rw [hEq]
+-      refine (MeasureTheory.eLpNorm_add_le hA_mem.aestronglyMeasurable hB_mem.aestronglyMeasurable
+-        (by norm_num)).trans ?_
++      refine (MeasureTheory.eLpNorm_add_le (by norm_num)).trans ?_
+       refine add_le_add ?_ ?_
+       · simpa [A, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_grad_mem.aestronglyMeasurable φ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++            (f := fun x => (fderiv ℝ (u.approx n) x) (basisVec i) - u.toH1Function.grad x i) 2 (by norm_num))
+       · simpa [B, dφ, mul_comm, mul_left_comm, mul_assoc] using!
+-          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-            hbase_mem.aestronglyMeasurable dφ)
++          (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := dφ)
++            (f := fun x => u.approx n x - u.toH1Function.toFun x) 2 (by norm_num))
+     refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+       tendsto_const_nhds ?_ (fun n => zero_le) hupper
+     simpa [zero_add] using hsum_tendsto
+--- a/Homogenization/Sobolev/H1/Algebra/H1Function.lean
++++ b/Homogenization/Sobolev/H1/Algebra/H1Function.lean
+@@ -283,15 +283,15 @@
+       memL2 := ?_
+       gradMemL2 := ?_
+       hasWeakGradient := ?_ }
+-  · simpa [Dφ, μU] using u.memL2.mul' hφ_memTop
++  · simpa [Dφ, μU] using hφ_memTop.fun_mul (r := 2) u.memL2
+   · intro i
+     let dφ : Vec d → ℝ := fun x => Dφ x i
+     have hfirst :
+         MeasureTheory.MemLp (fun x => φ x * u.grad x i) 2 μU := by
+-      simpa [μU] using (u.gradMemL2 i).mul' hφ_memTop
++      simpa [μU] using hφ_memTop.fun_mul (r := 2) (u.gradMemL2 i)
+     have hsecond :
+         MeasureTheory.MemLp (fun x => u x * dφ x) 2 μU := by
+-      simpa [dφ, Dφ, μU, mul_comm] using u.memL2.mul' (hdφ_memTop i)
++      simpa [dφ, Dφ, μU, mul_comm] using u.memL2.fun_mul (r := 2) (hdφ_memTop i)
+     simpa [dφ, Dφ, Pi.add_apply] using! hfirst.add hsecond
+   · intro i ψ hψ_smooth hψ_compact hψ_sub
+     let ei : Vec d := basisVec i
+@@ -464,7 +464,7 @@
+       memL2 := ?_
+       gradMemL2 := ?_
+       hasWeakGradient := ?_ }
+-  · simpa [Dφ, μU] using u.memL2.mul' hφ_memTop
++  · simpa [Dφ, μU] using hφ_memTop.fun_mul (r := 2) u.memL2
+   · intro i
+     let dφ : Vec d → ℝ := fun x => Dφ x i
+     have hdφ_cont : Continuous dφ := by
+@@ -476,10 +476,10 @@
+       (hdφ_cont.memLp_of_hasCompactSupport hdφ_compact).restrict U
+     have hfirst :
+         MeasureTheory.MemLp (fun x => φ x * u.grad x i) 2 μU := by
+-      simpa [μU] using (u.gradMemL2 i).mul' hφ_memTop
++      simpa [μU] using hφ_memTop.fun_mul (r := 2) (u.gradMemL2 i)
+     have hsecond :
+         MeasureTheory.MemLp (fun x => u x * dφ x) 2 μU := by
+-      simpa [dφ, μU, mul_comm] using u.memL2.mul' hdφ_memTop
++      simpa [dφ, μU, mul_comm] using u.memL2.fun_mul (r := 2) hdφ_memTop
+     simpa [dφ, Dφ, Pi.add_apply] using! hfirst.add hsecond
+   · intro i ψ hψ_smooth hψ_compact hψ_sub
+     let ei : Vec d := basisVec i
+--- a/Homogenization/Sobolev/H1/Algebra/Membership.lean
++++ b/Homogenization/Sobolev/H1/Algebra/Membership.lean
+@@ -206,8 +206,8 @@
+               change φ x * ψ n x - φ x * u' x = φ x * (ψ n x - u' x)
+               ring
+             rw [hEq]
+-            exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-              hdiff_mem.aestronglyMeasurable φ
++            exact MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++                  (f := fun x => ψ n x - u'.toFun x) 2 (by norm_num)
+           refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+             tendsto_const_nhds ?_ (fun n => zero_le) hupper
+           simpa using hconst_tendsto
+@@ -279,9 +279,9 @@
+                 MeasureTheory.MemLp (fun x => ψ n x - u' x) 2 μU := by
+               exact (hψ_memL2 n).sub u'.memL2
+             have hA_mem : MeasureTheory.MemLp A 2 μU := by
+-              simpa [A, μU] using hbase_grad_mem.mul' hφ_memTop
++              simpa [A, μU] using hφ_memTop.fun_mul (r := 2) hbase_grad_mem
+             have hB_mem : MeasureTheory.MemLp B 2 μU := by
+-              simpa [B, dφ, μU] using hbase_mem.mul' hdφ_memTop
++              simpa [B, dφ, μU] using hdφ_memTop.fun_mul (r := 2) hbase_mem
+             have hEq :
+                 (fun x =>
+                   (fderiv ℝ (fun y => φ y * ψ n y) x) (basisVec i) - uφ.grad x i) =
+@@ -295,15 +295,14 @@
+               simp [A, B, dφ, uφ, H1Function.mulContDiffHasCompactSupport_grad, smul_eq_mul]
+               ring
+             rw [hEq]
+-            refine (MeasureTheory.eLpNorm_add_le hA_mem.aestronglyMeasurable
+-              hB_mem.aestronglyMeasurable (by norm_num)).trans ?_
++            refine (MeasureTheory.eLpNorm_add_le (by norm_num)).trans ?_
+             refine add_le_add ?_ ?_
+             · simpa [A, mul_comm, mul_left_comm, mul_assoc] using!
+-                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-                  hbase_grad_mem.aestronglyMeasurable φ)
++                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := φ)
++                  (f := fun x => (fderiv ℝ (ψ n) x) (basisVec i) - u'.grad x i) 2 (by norm_num))
+             · simpa [B, dφ, mul_comm, mul_left_comm, mul_assoc] using!
+-                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm 2
+-                  hbase_mem.aestronglyMeasurable dφ)
++                (MeasureTheory.eLpNorm_smul_le_eLpNorm_top_mul_eLpNorm_of_pos (φ := dφ)
++                  (f := fun x => ψ n x - u'.toFun x) 2 (by norm_num))
+           refine tendsto_of_tendsto_of_tendsto_of_le_of_le
+             tendsto_const_nhds ?_ (fun n => zero_le) hupper
+           simpa [zero_add] using hsum_tendsto
+--- a/Homogenization/Sobolev/W1p/ConvexApproxSmoothing/Convergence.lean
++++ b/Homogenization/Sobolev/W1p/ConvexApproxSmoothing/Convergence.lean
+@@ -189,6 +189,15 @@
+     · simpa [f, hx, Real.dist_eq] using hn hx
+     · simp [hx, δ, hδpos.le]
+   let g : Vec d → ℝ := Set.indicator U (f n)
++  have hf_cont : Continuous (f n) := by
++    have hdu : Continuous (fun y => (fderiv ℝ u y) (basisVec i)) :=
++      (hu.continuous_fderiv (by simp)).clm_apply continuous_const
++    simpa only [f, Pi.sub_def, fderiv_convexApproxSmoothing_apply_basisVec_of_contDiff hρ hu] using
++      ((continuous_convexApproxSmoothing hρ.continuous hρ.compactSupport hdu
++        x0 r (ε n)).const_mul (1 - ε n)).sub hdu
++  have hgm : MeasureTheory.AEStronglyMeasurable
++      (g - fun _ : Vec d => (0 : ℝ)) MeasureTheory.volume :=
++    (hf_cont.aestronglyMeasurable.indicator hU_meas).sub MeasureTheory.aestronglyMeasurable_const
+   have hsupport_g : Function.support g ⊆ U := by
+     simp [g]
+   have hnorm_indicator_sub :
+@@ -196,8 +205,8 @@
+         ENNReal.ofReal δ * MeasureTheory.volume U ^ (1 / p.toReal) := by
+     exact
+       MeasureTheory.eLpNorm_sub_le_of_dist_bdd
+-        (μ := MeasureTheory.volume) (p := p) (s := U) hp hU_meas hδpos.le
+-        hdist hsupport_g (by simp : Function.support (fun _ : Vec d => (0 : ℝ)) ⊆ U)
++        (μ := MeasureTheory.volume) (p := p) (s := U) hp hU_meas.nullMeasurableSet hδpos.le
++        hgm hdist hsupport_g (by simp : Function.support (fun _ : Vec d => (0 : ℝ)) ⊆ U)
+   have hsub_zero : (g - fun _ : Vec d => (0 : ℝ)) = g := by
+     ext x
+     simp [g]
+@@ -311,6 +320,12 @@
+     · simpa [f, hx, Real.dist_eq] using hn hx
+     · simp [hx, δ, hδpos.le]
+   let g : Vec d → ℝ := Set.indicator U (f n)
++  have hf_cont : Continuous (f n) :=
++    (continuous_convexApproxSmoothing hρ.continuous hρ.compactSupport hu
++      x0 r (ε n)).sub hu
++  have hgm : MeasureTheory.AEStronglyMeasurable
++      (g - fun _ : Vec d => (0 : ℝ)) MeasureTheory.volume :=
++    (hf_cont.aestronglyMeasurable.indicator hU_meas).sub MeasureTheory.aestronglyMeasurable_const
+   have hsupport_g : Function.support g ⊆ U := by
+     simp [g]
+   have hnorm_indicator_sub :
+@@ -318,8 +333,8 @@
+         ENNReal.ofReal δ * MeasureTheory.volume U ^ (1 / p.toReal) := by
+     exact
+       MeasureTheory.eLpNorm_sub_le_of_dist_bdd
+-        (μ := MeasureTheory.volume) (p := p) (s := U) hp hU_meas hδpos.le
+-        hdist hsupport_g (by simp : Function.support (fun _ : Vec d => (0 : ℝ)) ⊆ U)
++        (μ := MeasureTheory.volume) (p := p) (s := U) hp hU_meas.nullMeasurableSet hδpos.le
++        hgm hdist hsupport_g (by simp : Function.support (fun _ : Vec d => (0 : ℝ)) ⊆ U)
+   have hsub_zero : (g - fun _ : Vec d => (0 : ℝ)) = g := by
+     ext x
+     simp [g]
+@@ -480,7 +495,7 @@
+       exact
+         ((continuous_convexApproxSmoothing hρ.continuous hρ.compactSupport g.continuous
+           x0 r (ε n)).sub g.continuous).aestronglyMeasurable
+-    exact hη₂ _ _ hmid_meas hthird_mem.aestronglyMeasurable hmid hthird_norm
++    exact hη₂ _ _ hmid hthird_norm
+   have hfirst_eventually :
+       ∀ᶠ n : ℕ in Filter.atTop,
+         MeasureTheory.eLpNorm
+@@ -548,7 +563,7 @@
+         x0 r (ε n)).sub g.continuous).aestronglyMeasurable).add
+         hthird_mem.aestronglyMeasurable
+   have hsum : MeasureTheory.eLpNorm (F + G) p μ < η := by
+-    exact hη₁ _ _ hF_meas hG_meas hfirst (le_of_lt hcombo)
++    exact hη₁ _ _ hfirst (le_of_lt hcombo)
+   have hdecomp :
+       MeasureTheory.eLpNorm (fun x => convexApproxSmoothing ρ u x0 r (ε n) x - u x) p μ =
+         MeasureTheory.eLpNorm (F + G) p μ := by
+@@ -682,7 +697,7 @@
+             positivity
+       _ ≤ η₁ := hsmall
+   have hsum : MeasureTheory.eLpNorm (F + G) p μ < η := by
+-    exact hη₁ _ _ hF_meas hG_meas hvalue hG_norm
++    exact hη₁ _ _ hvalue hG_norm
+   have hdecomp :
+       MeasureTheory.eLpNorm
+           (fun x => (1 - ε n) * convexApproxSmoothing ρ u x0 r (ε n) x - u x)
+--- a/Homogenization/Sobolev/W1p/ConvexApproxSmoothing/SmoothRepresentative.lean
++++ b/Homogenization/Sobolev/W1p/ConvexApproxSmoothing/SmoothRepresentative.lean
+@@ -149,6 +149,7 @@
+       _ = ENNReal.ofReal ((a ^ d)⁻¹) •
+             MeasureTheory.Measure.map (fun y : Vec d => y + b) MeasureTheory.volume := by
+             rw [MeasureTheory.Measure.map_smul]
++            fun_prop
+       _ = ENNReal.ofReal ((a ^ d)⁻¹) • MeasureTheory.volume := by
+             rw [MeasureTheory.map_add_right_eq_self]
+       _ = ENNReal.ofReal (((1 - ε) ^ d)⁻¹) • MeasureTheory.volume := by
+@@ -173,6 +174,7 @@
+         p (MeasureTheory.volume.restrict U) ≤
+       ENNReal.ofReal (((1 - ε) ^ d)⁻¹) ^ (1 / p).toReal *
+         MeasureTheory.eLpNorm u p (MeasureTheory.volume.restrict U) := by
++  have ha : 0 < 1 - ε := sub_pos.mpr hε1
+   calc
+     MeasureTheory.eLpNorm (fun x => u (convexApproxSample x0 z r ε x))
+         p (MeasureTheory.volume.restrict U)
+@@ -189,7 +191,7 @@
+     _ = ENNReal.ofReal (((1 - ε) ^ d)⁻¹) ^ (1 / p).toReal •
+           MeasureTheory.eLpNorm u p
+             (MeasureTheory.volume.restrict (convexApproxSample x0 z r ε '' U)) := by
+-            rw [MeasureTheory.eLpNorm_smul_measure_of_ne_top hp]
++            rw [MeasureTheory.eLpNorm_smul_measure_of_ne_zero (by positivity)]
+     _ ≤ ENNReal.ofReal (((1 - ε) ^ d)⁻¹) ^ (1 / p).toReal •
+           MeasureTheory.eLpNorm u p (MeasureTheory.volume.restrict U) := by
+             exact
+@@ -316,7 +318,6 @@
+           MeasureTheory.eLpNorm u p (MeasureTheory.volume.restrict U) < ⊤ := by
+     refine ENNReal.mul_lt_top ?_ hu.eLpNorm_lt_top
+     exact ENNReal.rpow_lt_top_of_nonneg (by positivity) ENNReal.ofReal_ne_top
+-  refine ⟨aestronglyMeasurable_convexApproxSmoothing hU hρ hp1 hu hball hr hε0 hε1, ?_⟩
+   refine lt_of_le_of_lt ?_ hnorm_lt_top
+   · exact eLpNorm_convexApproxSmoothing_le hU hρ hp1 hp hu hball hr hε0 hε1
+ 
+--- a/Homogenization/Sobolev/W1p/ConvolutionLp.lean
++++ b/Homogenization/Sobolev/W1p/ConvolutionLp.lean
+@@ -160,8 +160,9 @@
+   let μ : Measure (Vec d) := volume.withDensity fun t => ENNReal.ofReal (ρ t)
+   let : IsProbabilityMeasure μ :=
+     isProbabilityMeasure_withDensity_ofReal hρ_nonneg hρ_int hρ_one
+-  rw [eLpNorm_eq_lintegral_rpow_enorm_toReal hp_ne_zero hp']
+-  rw [eLpNorm_eq_lintegral_rpow_enorm_toReal hp_ne_zero hp']
++  rw [eLpNorm_eq_lintegral_rpow_enorm_toReal hp_ne_zero hp'
++    (hρ_meas.aestronglyMeasurable.convolution (ContinuousLinearMap.lsmul ℝ ℝ) hg_meas.aestronglyMeasurable)]
++  rw [eLpNorm_eq_lintegral_rpow_enorm_toReal hp_ne_zero hp' hg_meas.aestronglyMeasurable]
+   apply ENNReal.rpow_le_rpow _ (by positivity : 0 ≤ 1 / p.toReal)
+   have hfubini :=
+     fubini_translation_key (d := d) (fun t => ENNReal.ofReal (ρ t)) g p.toReal
+@@ -228,7 +229,6 @@
+             convert
+               lintegral_withDensity_eq_lintegral_mul volume hρ_meas.ennreal_ofReal h_meas_pow
+               using 2
+-            simp only [Pi.mul_apply]
+           rw [h_eq]
+           have habs_rpow_nonneg : ∀ t, 0 ≤ |g (x - t)| ^ p.toReal :=
+             fun t => Real.rpow_nonneg (abs_nonneg _) _
+
+--- a/Homogenization/Sobolev/H1/BasicLemmas.lean
++++ b/Homogenization/Sobolev/H1/BasicLemmas.lean
+@@ -1,4 +1,5 @@
+ import Homogenization.Geometry.ConvexDomain
++import Homogenization.Sobolev.WeakDerivativeLemmas
+ import Homogenization.Geometry.TriadicPartition
+ import Homogenization.Multiscale.NormalizedNorms
+ import Homogenization.Sobolev.H1.Definitions
+@@ -26,88 +27,6 @@
+       using hu
+   simpa [normalizedCubeMeasure] using
+     hcube.smul_measure ENNReal.ofReal_ne_top
+-
+-theorem HasWeakPartialDerivOn.restrict {d : ℕ} {U V : Set (Vec d)}
+-    (hVopen : IsOpen V) (hVU : V ⊆ U)
+-    {i : Fin d} {u gi : Vec d → ℝ}
+-    (h : HasWeakPartialDerivOn U i u gi) :
+-    HasWeakPartialDerivOn V i u gi := by
+-  let _ := hVopen
+-  intro φ hφ_smooth hφ_compact hφ_supp
+-  have hφ_suppU : tsupport φ ⊆ U := hφ_supp.trans hVU
+-  have key := h φ hφ_smooth hφ_compact hφ_suppU
+-  have h1 : ∀ x, x ∉ V → u x * (fderiv ℝ φ x) (basisVec i) = 0 := by
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_supp hx')
+-    have hφ_eq : φ =ᶠ[nhds x] 0 :=
+-      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
+-        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
+-    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
+-    simp
+-  have h2 : ∀ x, x ∉ V → gi x * φ x = 0 := by
+-    intro x hx
+-    simp [image_eq_zero_of_notMem_tsupport (fun hx' => hx (hφ_supp hx'))]
+-  have h3 : ∀ x, x ∉ U → u x * (fderiv ℝ φ x) (basisVec i) = 0 :=
+-    fun x hx => h1 x (fun hx' => hx (hVU hx'))
+-  have h4 : ∀ x, x ∉ U → gi x * φ x = 0 :=
+-    fun x hx => h2 x (fun hx' => hx (hVU hx'))
+-  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h1,
+-    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h2,
+-    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h3,
+-    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h4,
+-    key]
+-
+-theorem HasWeakGradientOn.restrict {d : ℕ} {U V : Set (Vec d)}
+-    (hVopen : IsOpen V) (hVU : V ⊆ U)
+-    {u : Vec d → ℝ} {Du : Vec d → Vec d}
+-    (h : HasWeakGradientOn U u Du) :
+-    HasWeakGradientOn V u Du := by
+-  intro i
+-  exact (h i).restrict hVopen hVU
+-
+-theorem HasWeakPartialDerivOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
+-    {i : Fin d} {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
+-    HasWeakPartialDerivOn U i f (fun x => (fderiv ℝ f x) (basisVec i)) := by
+-  intro φ hφ_smooth hφ_supp hφ_sub
+-  let ei : Vec d := basisVec i
+-  have hf_diff : Differentiable ℝ f := hf.differentiable (by simp)
+-  have hφ_diff : Differentiable ℝ φ := hφ_smooth.differentiable (by simp)
+-  have hf_cont : Continuous f := hf_diff.continuous
+-  have hφ_cont : Continuous φ := hφ_diff.continuous
+-  have hfderiv_φ_cont : Continuous (fun x => (fderiv ℝ φ x) ei) := by
+-    simpa [ei] using
+-      (hφ_smooth.continuous_fderiv (by simp)).clm_apply continuous_const
+-  have hfderiv_f_cont : Continuous (fun x => (fderiv ℝ f x) ei) := by
+-    simpa [ei] using
+-      (hf.continuous_fderiv (by simp)).clm_apply continuous_const
+-  have hφ_fderiv_supp : HasCompactSupport (fun x => (fderiv ℝ φ x) ei) := by
+-    simpa [ei] using hφ_supp.fderiv_apply (𝕜 := ℝ) ei
+-  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero,
+-    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero]
+-  · simpa [ei] using
+-      integral_mul_fderiv_eq_neg_fderiv_mul_of_integrable
+-        ((hfderiv_f_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
+-        ((hf_cont.mul hfderiv_φ_cont).integrable_of_hasCompactSupport hφ_fderiv_supp.mul_left)
+-        ((hf_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
+-        (fun x _ => hf_diff.differentiableAt) (fun x _ => hφ_diff.differentiableAt)
+-  ·
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
+-    simp [image_eq_zero_of_notMem_tsupport hx_notin]
+-  ·
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
+-    have hφ_eq : φ =ᶠ[nhds x] 0 :=
+-      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
+-        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
+-    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
+-    simp
+-
+-theorem HasWeakGradientOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
+-    {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
+-    HasWeakGradientOn U f (fun x i => (fderiv ℝ f x) (basisVec i)) := by
+-  intro i
+-  exact HasWeakPartialDerivOn.of_contDiff hf
+
+ namespace H1Function
+
+--- a/Homogenization/Sobolev/W1p/BasicLemmas.lean
++++ b/Homogenization/Sobolev/W1p/BasicLemmas.lean
+@@ -1,4 +1,5 @@
+ import Homogenization.Geometry.ConvexDomain
++import Homogenization.Sobolev.WeakDerivativeLemmas
+ import Homogenization.Sobolev.W1p.Definitions
+
+ namespace Homogenization
+@@ -11,88 +12,6 @@
+     (hVU : V ⊆ U) (hDu : GradMemLpOn U p Du) : GradMemLpOn V p Du := by
+   intro i
+   exact memLpOn_mono hVU (hDu i)
+-
+-theorem HasWeakPartialDerivOn.restrict {d : ℕ} {U V : Set (Vec d)}
+-    (hVopen : IsOpen V) (hVU : V ⊆ U)
+-    {i : Fin d} {u gi : Vec d → ℝ}
+-    (h : HasWeakPartialDerivOn U i u gi) :
+-    HasWeakPartialDerivOn V i u gi := by
+-  let _ := hVopen
+-  intro φ hφ_smooth hφ_compact hφ_supp
+-  have hφ_suppU : tsupport φ ⊆ U := hφ_supp.trans hVU
+-  have key := h φ hφ_smooth hφ_compact hφ_suppU
+-  have h1 : ∀ x, x ∉ V → u x * (fderiv ℝ φ x) (basisVec i) = 0 := by
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_supp hx')
+-    have hφ_eq : φ =ᶠ[nhds x] 0 :=
+-      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
+-        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
+-    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
+-    simp
+-  have h2 : ∀ x, x ∉ V → gi x * φ x = 0 := by
+-    intro x hx
+-    simp [image_eq_zero_of_notMem_tsupport (fun hx' => hx (hφ_supp hx'))]
+-  have h3 : ∀ x, x ∉ U → u x * (fderiv ℝ φ x) (basisVec i) = 0 :=
+-    fun x hx => h1 x (fun hx' => hx (hVU hx'))
+-  have h4 : ∀ x, x ∉ U → gi x * φ x = 0 :=
+-    fun x hx => h2 x (fun hx' => hx (hVU hx'))
+-  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h1,
+-    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h2,
+-    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h3,
+-    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h4,
+-    key]
+-
+-theorem HasWeakGradientOn.restrict {d : ℕ} {U V : Set (Vec d)}
+-    (hVopen : IsOpen V) (hVU : V ⊆ U)
+-    {u : Vec d → ℝ} {Du : Vec d → Vec d}
+-    (h : HasWeakGradientOn U u Du) :
+-    HasWeakGradientOn V u Du := by
+-  intro i
+-  exact (h i).restrict hVopen hVU
+-
+-theorem HasWeakPartialDerivOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
+-    {i : Fin d} {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
+-    HasWeakPartialDerivOn U i f (fun x => (fderiv ℝ f x) (basisVec i)) := by
+-  intro φ hφ_smooth hφ_supp hφ_sub
+-  let ei : Vec d := basisVec i
+-  have hf_diff : Differentiable ℝ f := hf.differentiable (by simp)
+-  have hφ_diff : Differentiable ℝ φ := hφ_smooth.differentiable (by simp)
+-  have hf_cont : Continuous f := hf_diff.continuous
+-  have hφ_cont : Continuous φ := hφ_diff.continuous
+-  have hfderiv_φ_cont : Continuous (fun x => (fderiv ℝ φ x) ei) := by
+-    simpa [ei] using
+-      (hφ_smooth.continuous_fderiv (by simp)).clm_apply continuous_const
+-  have hfderiv_f_cont : Continuous (fun x => (fderiv ℝ f x) ei) := by
+-    simpa [ei] using
+-      (hf.continuous_fderiv (by simp)).clm_apply continuous_const
+-  have hφ_fderiv_supp : HasCompactSupport (fun x => (fderiv ℝ φ x) ei) := by
+-    simpa [ei] using hφ_supp.fderiv_apply (𝕜 := ℝ) ei
+-  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero,
+-    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero]
+-  · simpa [ei] using
+-      integral_mul_fderiv_eq_neg_fderiv_mul_of_integrable
+-        ((hfderiv_f_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
+-        ((hf_cont.mul hfderiv_φ_cont).integrable_of_hasCompactSupport hφ_fderiv_supp.mul_left)
+-        ((hf_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
+-        (fun x _ => hf_diff.differentiableAt) (fun x _ => hφ_diff.differentiableAt)
+-  ·
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
+-    simp [image_eq_zero_of_notMem_tsupport hx_notin]
+-  ·
+-    intro x hx
+-    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
+-    have hφ_eq : φ =ᶠ[nhds x] 0 :=
+-      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
+-        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
+-    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
+-    simp
+-
+-theorem HasWeakGradientOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
+-    {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
+-    HasWeakGradientOn U f (fun x i => (fderiv ℝ f x) (basisVec i)) := by
+-  intro i
+-  exact HasWeakPartialDerivOn.of_contDiff hf
+
+ namespace W1pFunction
+
+--- /dev/null
++++ b/Homogenization/Sobolev/WeakDerivativeLemmas.lean
+@@ -0,0 +1,90 @@
++import Homogenization.Sobolev.WeakDerivatives
++
++/-! Shared restriction and smooth-function lemmas for weak derivatives.
++Both the H¹ and W¹ᵖ APIs use these same public declarations. -/
++
++namespace Homogenization
++
++theorem HasWeakPartialDerivOn.restrict {d : ℕ} {U V : Set (Vec d)}
++    (hVopen : IsOpen V) (hVU : V ⊆ U)
++    {i : Fin d} {u gi : Vec d → ℝ}
++    (h : HasWeakPartialDerivOn U i u gi) :
++    HasWeakPartialDerivOn V i u gi := by
++  let _ := hVopen
++  intro φ hφ_smooth hφ_compact hφ_supp
++  have hφ_suppU : tsupport φ ⊆ U := hφ_supp.trans hVU
++  have key := h φ hφ_smooth hφ_compact hφ_suppU
++  have h1 : ∀ x, x ∉ V → u x * (fderiv ℝ φ x) (basisVec i) = 0 := by
++    intro x hx
++    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_supp hx')
++    have hφ_eq : φ =ᶠ[nhds x] 0 :=
++      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
++        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
++    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
++    simp
++  have h2 : ∀ x, x ∉ V → gi x * φ x = 0 := by
++    intro x hx
++    simp [image_eq_zero_of_notMem_tsupport (fun hx' => hx (hφ_supp hx'))]
++  have h3 : ∀ x, x ∉ U → u x * (fderiv ℝ φ x) (basisVec i) = 0 :=
++    fun x hx => h1 x (fun hx' => hx (hVU hx'))
++  have h4 : ∀ x, x ∉ U → gi x * φ x = 0 :=
++    fun x hx => h2 x (fun hx' => hx (hVU hx'))
++  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h1,
++    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h2,
++    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h3,
++    ← MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero h4,
++    key]
++
++theorem HasWeakGradientOn.restrict {d : ℕ} {U V : Set (Vec d)}
++    (hVopen : IsOpen V) (hVU : V ⊆ U)
++    {u : Vec d → ℝ} {Du : Vec d → Vec d}
++    (h : HasWeakGradientOn U u Du) :
++    HasWeakGradientOn V u Du := by
++  intro i
++  exact (h i).restrict hVopen hVU
++
++theorem HasWeakPartialDerivOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
++    {i : Fin d} {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
++    HasWeakPartialDerivOn U i f (fun x => (fderiv ℝ f x) (basisVec i)) := by
++  intro φ hφ_smooth hφ_supp hφ_sub
++  let ei : Vec d := basisVec i
++  have hf_diff : Differentiable ℝ f := hf.differentiable (by simp)
++  have hφ_diff : Differentiable ℝ φ := hφ_smooth.differentiable (by simp)
++  have hf_cont : Continuous f := hf_diff.continuous
++  have hφ_cont : Continuous φ := hφ_diff.continuous
++  have hfderiv_φ_cont : Continuous (fun x => (fderiv ℝ φ x) ei) := by
++    simpa [ei] using
++      (hφ_smooth.continuous_fderiv (by simp)).clm_apply continuous_const
++  have hfderiv_f_cont : Continuous (fun x => (fderiv ℝ f x) ei) := by
++    simpa [ei] using
++      (hf.continuous_fderiv (by simp)).clm_apply continuous_const
++  have hφ_fderiv_supp : HasCompactSupport (fun x => (fderiv ℝ φ x) ei) := by
++    simpa [ei] using hφ_supp.fderiv_apply (𝕜 := ℝ) ei
++  rw [MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero,
++    MeasureTheory.setIntegral_eq_integral_of_forall_compl_eq_zero]
++  · simpa [ei] using
++      integral_mul_fderiv_eq_neg_fderiv_mul_of_integrable
++        ((hfderiv_f_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
++        ((hf_cont.mul hfderiv_φ_cont).integrable_of_hasCompactSupport hφ_fderiv_supp.mul_left)
++        ((hf_cont.mul hφ_cont).integrable_of_hasCompactSupport hφ_supp.mul_left)
++        (fun x _ => hf_diff.differentiableAt) (fun x _ => hφ_diff.differentiableAt)
++  ·
++    intro x hx
++    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
++    simp [image_eq_zero_of_notMem_tsupport hx_notin]
++  ·
++    intro x hx
++    have hx_notin : x ∉ tsupport φ := fun hx' => hx (hφ_sub hx')
++    have hφ_eq : φ =ᶠ[nhds x] 0 :=
++      (isClosed_tsupport (f := φ)).isOpen_compl.eventually_mem hx_notin |>.mono
++        (fun y hy => image_eq_zero_of_notMem_tsupport hy)
++    rw [Filter.EventuallyEq.fderiv_eq hφ_eq]
++    simp
++
++theorem HasWeakGradientOn.of_contDiff {d : ℕ} {U : Set (Vec d)}
++    {f : Vec d → ℝ} (hf : ContDiff ℝ 1 f) :
++    HasWeakGradientOn U f (fun x i => (fderiv ℝ f x) (basisVec i)) := by
++  intro i
++  exact HasWeakPartialDerivOn.of_contDiff hf
++
++end Homogenization
